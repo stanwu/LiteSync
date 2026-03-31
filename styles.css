@@ -1,0 +1,12 @@
+.litesync-status {
+  cursor: pointer;
+}
+.litesync-status.syncing {
+  color: var(--text-accent);
+}
+.litesync-status.error {
+  color: var(--text-error);
+}
+.litesync-status.ok {
+  color: var(--text-success, #4caf50);
+}

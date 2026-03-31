@@ -1,0 +1,5 @@
+node_modules/
+data.json
+.livesync-manifest.json
+*.log
+.DS_Store

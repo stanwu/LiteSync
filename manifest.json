@@ -1,0 +1,9 @@
+{
+  "id": "litesync",
+  "name": "LiteSync",
+  "version": "1.0.0",
+  "minAppVersion": "0.9.12",
+  "description": "Lightweight CouchDB sync for Obsidian. Compatible with Self-hosted LiveSync database format.",
+  "author": "Stan",
+  "isDesktopOnly": true
+}
