@@ -256,7 +256,7 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
       });
       _this.addCommand({
         id: "litesync-prune", name: "Prune zombie docs",
-        callback: function() { _this.doPrune(); },
+        callback: function() { new PruneConfirmModal(_this.app, _this).open(); },
       });
       _this.addCommand({
         id: "litesync-status", name: "Show sync status",
@@ -770,6 +770,62 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
 }(obsidian.Plugin));
 
 // ================================================================
+// Prune Confirmation Modal
+// ================================================================
+
+var PruneConfirmModal = /** @class */ (function(_super) {
+  function PruneConfirmModal(app, plugin) {
+    var _this = _super.call(this, app) || this;
+    _this.plugin = plugin;
+    return _this;
+  }
+  PruneConfirmModal.prototype = Object.create(_super.prototype);
+  PruneConfirmModal.prototype.constructor = PruneConfirmModal;
+
+  PruneConfirmModal.prototype.onOpen = function() {
+    var _this = this;
+    var el = this.contentEl;
+    el.createEl("h2", { text: "\u26a0\ufe0f Prune - Dangerous Operation" });
+    el.createEl("p", { text: "This will soft-delete documents from CouchDB that no longer exist in your vault." });
+
+    var checks = {
+      "I understand this will remove documents from CouchDB": false,
+      "I have a backup of my database": false,
+    };
+    var a = Math.floor(Math.random() * 9) + 1;
+    var b = Math.floor(Math.random() * 9) + 1;
+    var answer = a + b;
+    var mathOk = false;
+    var btn = null;
+
+    function update() {
+      var allChecked = Object.keys(checks).every(function(k) { return checks[k]; });
+      if (btn) btn.setDisabled(!(allChecked && mathOk));
+    }
+
+    Object.keys(checks).forEach(function(label) {
+      new obsidian.Setting(el).setName(label).addToggle(function(t) {
+        t.onChange(function(v) { checks[label] = v; update(); });
+      });
+    });
+
+    new obsidian.Setting(el).setName("Verify: " + a + " + " + b + " = ?").addText(function(t) {
+      t.setPlaceholder("?").onChange(function(v) { mathOk = parseInt(v) === answer; update(); });
+    });
+
+    new obsidian.Setting(el).addButton(function(b2) {
+      btn = b2;
+      b2.setButtonText("Execute Prune").setWarning().setDisabled(true).onClick(function() {
+        _this.close();
+        _this.plugin.doPrune();
+      });
+    });
+  };
+
+  return PruneConfirmModal;
+}(obsidian.Modal));
+
+// ================================================================
 // Settings Tab
 // ================================================================
 
@@ -929,7 +985,7 @@ var LiteSyncSettingTab = /** @class */ (function(_super) {
       .setDesc("Soft-delete docs from DB that no longer exist locally")
       .addButton(function(btn) {
         btn.setButtonText("Prune").setWarning().onClick(function() {
-          plugin.doPrune();
+          new PruneConfirmModal(plugin.app, plugin).open();
         });
       });
   };
