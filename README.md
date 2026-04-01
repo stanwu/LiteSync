@@ -8,9 +8,7 @@ I have a 2010 MacBook Air with 2GB RAM running macOS 10.14 Mojave. It is lightwe
 
 I use [Self-hosted LiveSync](https://github.com/vrtmrz/obsidian-livesync) to sync my vault across devices through my own CouchDB server. It's a brilliant project — real-time, end-to-end encrypted, self-hosted. I trusted it with years of notes.
 
-Then one day, Obsidian crashed. `SIGSEGV in V8 JIT`. I restarted, it crashed again. After hours of debugging, I traced it to LiveSync — the plugin had grown complex, optimized for modern Electron, and my older runtime simply couldn't handle it. Every launch ended in a segfault.
-
-I couldn't upgrade macOS (hardware limitation). I couldn't downgrade LiveSync (database format had moved on). And I refused to give up sync — my notes live on multiple machines, and manual copy is not an option.
+I had been using iCloud to sync my vault, and it worked fine — on Apple devices. But I also use Windows 11, Linux, and Android. I didn't want to be locked into Apple's ecosystem. So with Claude's help, I decided to step out of my comfort zone and break free from the iCloud dependency entirely.
 
 So I did what any stubborn engineer would do: I opened the CouchDB database, reverse-engineered the document format, and wrote my own sync plugin from scratch.
 
