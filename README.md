@@ -1,6 +1,11 @@
 # LiteSync
 
+[![Release](https://img.shields.io/github/v/release/stanwu/LiteSync)](https://github.com/stanwu/LiteSync/releases/latest)
+[![CI](https://github.com/stanwu/LiteSync/actions/workflows/release.yml/badge.svg)](https://github.com/stanwu/LiteSync/actions/workflows/release.yml)
+
 Lightweight CouchDB sync plugin for Obsidian. Compatible with [Self-hosted LiveSync](https://github.com/vrtmrz/obsidian-livesync) database format.
+
+**[Download latest release](https://github.com/stanwu/LiteSync/releases/latest)**
 
 ## The Story
 
