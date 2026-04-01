@@ -35,8 +35,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: LiteSync ${{ steps.tag.outputs.version }}
-          files: |
-            litesync-plugin.zip
-            main.js
-            manifest.json
-            styles.css
+          files: litesync-plugin.zip
