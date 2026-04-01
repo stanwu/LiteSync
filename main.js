@@ -209,6 +209,57 @@ function softDeleteInDB(settings, doc) {
   return couchRequest(settings, encodeURIComponent(doc._id), "PUT", JSON.stringify(updated));
 }
 
+// === Sync classification (pure function, testable) ===
+function classifyChanges(manifest, localByPath, remoteByPath, remoteDeleted) {
+  var toPull = [];
+  var toPush = [];
+  var toDeleteRemote = [];
+  var toTrashLocal = [];
+
+  var allPaths = {};
+  Object.keys(remoteByPath).forEach(function(p) { allPaths[p] = true; });
+  Object.keys(manifest).forEach(function(p) { allPaths[p] = true; });
+  Object.keys(localByPath).forEach(function(p) { allPaths[p] = true; });
+
+  Object.keys(allPaths).forEach(function(p) {
+    var remote = remoteByPath[p];
+    var local = localByPath[p];
+    var inManifest = !!manifest[p];
+
+    if (inManifest && !local && remote) {
+      toDeleteRemote.push({ path: p, doc: remote });
+    } else if (inManifest && local && !remote) {
+      if (!remoteDeleted[p]) {
+        toPush.push({ path: p, file: local, doc: null });
+      }
+    } else if (!inManifest && !local && remote) {
+      toPull.push({ path: p, doc: remote });
+    } else if (!inManifest && local && !remote) {
+      toPush.push({ path: p, file: local, doc: null });
+    } else if (remote && local) {
+      if (remote.size === local.stat.size) return;
+      var rMtime = remote.mtime || 0;
+      var lMtime = local.stat.mtime || 0;
+      if (lMtime > rMtime) {
+        toPush.push({ path: p, file: local, doc: remote });
+      } else if (rMtime > lMtime) {
+        toPull.push({ path: p, doc: remote });
+      }
+    }
+  });
+
+  Object.keys(remoteDeleted).forEach(function(p) {
+    if (remoteByPath[p]) return;
+    if (!manifest[p]) return;
+    var local = localByPath[p];
+    if (local) {
+      toTrashLocal.push({ path: p, file: local });
+    }
+  });
+
+  return { toPull: toPull, toPush: toPush, toDeleteRemote: toDeleteRemote, toTrashLocal: toTrashLocal };
+}
+
 // ================================================================
 // LiteSync Plugin
 // ================================================================
@@ -618,57 +669,11 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
       var localByPath = {};
       localFiles.forEach(function(f) { localByPath[f.path] = f; });
 
-      var toPull = [];
-      var toPush = [];
-      var toDeleteRemote = [];  // local deleted → soft-delete in DB
-      var toTrashLocal = [];    // remote deleted → trash locally
-
-      // Collect all known paths
-      var allPaths = {};
-      Object.keys(remoteByPath).forEach(function(p) { allPaths[p] = true; });
-      Object.keys(manifest).forEach(function(p) { allPaths[p] = true; });
-      localFiles.forEach(function(f) { allPaths[f.path] = true; });
-
-      Object.keys(allPaths).forEach(function(p) {
-        var remote = remoteByPath[p];
-        var local = localByPath[p];
-        var inManifest = !!manifest[p];
-
-        if (inManifest && !local && remote) {
-          // Was synced before, now deleted locally → soft-delete remote
-          toDeleteRemote.push({ path: p, doc: remote });
-        } else if (inManifest && local && !remote) {
-          // Was synced before, remote doc gone (purge/compaction?) → re-push
-          toPush.push({ path: p, file: local, doc: null });
-        } else if (!inManifest && !local && remote) {
-          // Never synced, remote only → pull
-          toPull.push({ path: p, doc: remote });
-        } else if (!inManifest && local && !remote) {
-          // Never synced, local only → push
-          toPush.push({ path: p, file: local, doc: null });
-        } else if (remote && local) {
-          if (remote.size === local.stat.size) return;
-          var rMtime = remote.mtime || 0;
-          var lMtime = local.stat.mtime || 0;
-          if (lMtime > rMtime) {
-            toPush.push({ path: p, file: local, doc: remote });
-          } else if (rMtime > lMtime) {
-            toPull.push({ path: p, doc: remote });
-          }
-        }
-      });
-
-      // Remote soft-deleted docs → trash local only if:
-      // 1. No active remote doc for this path (avoid conflict with active docs)
-      // 2. File was previously synced (in manifest — don't trust old deletions on first sync)
-      Object.keys(remoteDeleted).forEach(function(p) {
-        if (remoteByPath[p]) return;  // active doc exists, skip
-        if (!manifest[p]) return;     // never synced, ignore old deletions
-        var local = localByPath[p];
-        if (local) {
-          toTrashLocal.push({ path: p, file: local });
-        }
-      });
+      var actions = classifyChanges(manifest, localByPath, remoteByPath, remoteDeleted);
+      var toPull = actions.toPull;
+      var toPush = actions.toPush;
+      var toDeleteRemote = actions.toDeleteRemote;
+      var toTrashLocal = actions.toTrashLocal;
 
       var result = { pulled: 0, pushed: 0, deleted: 0, trashed: 0, errors: 0 };
       var totalOps = toPull.length + toPush.length + toDeleteRemote.length + toTrashLocal.length;
@@ -1085,3 +1090,4 @@ var LiteSyncSettingTab = /** @class */ (function(_super) {
 
 // === Export ===
 module.exports = LiteSyncPlugin;
+module.exports._classifyChanges = classifyChanges;
