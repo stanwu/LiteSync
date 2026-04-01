@@ -2,19 +2,42 @@
 
 Lightweight CouchDB sync plugin for Obsidian. Compatible with [Self-hosted LiveSync](https://github.com/vrtmrz/obsidian-livesync) database format.
 
-## Why
+## The Story
 
-Self-hosted LiveSync crashes on older Obsidian/Electron versions (SIGSEGV in V8 JIT). LiteSync is a ~400 line ES2017 alternative that works on Obsidian 1.1.16+ (macOS 10.14 Mojave).
+I have a 2018 Mac mini running macOS 10.14 Mojave. It's not old to me — it's my daily driver, my note-taking machine, the place where thousands of Obsidian notes live.
+
+I use [Self-hosted LiveSync](https://github.com/vrtmrz/obsidian-livesync) to sync my vault across devices through my own CouchDB server. It's a brilliant project — real-time, end-to-end encrypted, self-hosted. I trusted it with years of notes.
+
+Then one day, Obsidian crashed. `SIGSEGV in V8 JIT`. I restarted, it crashed again. After hours of debugging, I traced it to LiveSync — the plugin had grown complex, optimized for modern Electron, and my older runtime simply couldn't handle it. Every launch ended in a segfault.
+
+I couldn't upgrade macOS (hardware limitation). I couldn't downgrade LiveSync (database format had moved on). And I refused to give up sync — my notes live on multiple machines, and manual copy is not an option.
+
+So I did what any stubborn engineer would do: I opened the CouchDB database, reverse-engineered the document format, and wrote my own sync plugin from scratch.
+
+900 lines of ES2017. No build step. No transpiler. No dependencies. Just plain JavaScript that reads and writes the exact same database LiveSync uses.
+
+It worked on the first try.
+
+## Why Share This
+
+LiveSync is an incredible piece of engineering. I'm not trying to replace it — if it works for you, keep using it.
+
+But if you're stuck on an older machine, or if LiveSync is crashing and you need your notes *right now*, or if you just want a sync plugin simple enough to read in one sitting — LiteSync is here.
+
+It's also a clean reference implementation of the LiveSync database format. The entire codebase fits in a single file. Fork it, modify it, learn from it.
 
 ## Features
 
-- **Bidirectional sync** with CouchDB (pull/push)
-- **Real-time sync** via Obsidian vault events (modify, delete, rename, create)
-- **Compatible** with Self-hosted LiveSync database format
+- **Bidirectional sync** with CouchDB (newer wins)
+- **Pull** — remote to local only
+- **Push** — local to remote only
+- **Fetch** — full download for first-time setup
+- **Prune** — remove zombie docs from DB (with confirmation modal)
+- **Periodic sync** — configurable timer with toggle switch
+- **Binary file support** — images, PDFs, etc. via base64
+- **Compatible** with Self-hosted LiveSync database format (SHA-256 path obfuscation)
 - **Status bar** showing sync state
-- **Settings UI** for CouchDB connection
-- **Commands** (Cmd+P): Sync now, Pull, Push, Show status
-- **~400 lines** ES2017 — no build step, no transpiler
+- **~900 lines** ES2017 — no build step, no transpiler
 
 ## Requirements
 
@@ -28,6 +51,19 @@ Self-hosted LiveSync crashes on older Obsidian/Electron versions (SIGSEGV in V8 
 2. Enable "LiteSync" in Obsidian Settings → Community Plugins
 3. Configure CouchDB connection in Settings → LiteSync
 
+## Commands
+
+All commands available via `Cmd/Ctrl + P`:
+
+| Command | Description |
+|---------|-------------|
+| Sync now | Bidirectional sync (newer wins) |
+| Pull from remote | Remote → Local only |
+| Push to remote | Local → Remote only |
+| Fetch (full download) | Download all files from DB |
+| Prune zombie docs | Remove orphaned docs from DB |
+| Show sync status | Display DB info |
+
 ## Configuration
 
 | Setting | Description |
@@ -35,10 +71,11 @@ Self-hosted LiveSync crashes on older Obsidian/Electron versions (SIGSEGV in V8 
 | Server URI | CouchDB URL (e.g. `https://your-server/couchdb`) |
 | Username | CouchDB admin username |
 | Password | CouchDB admin password |
-| Database name | Default: `obsidianlivesync` |
-| Auto sync | Enable real-time sync on file changes |
-| Sync interval | Periodic sync in seconds (0 = manual only) |
+| Database name | CouchDB database name |
+| Passphrase | Must match Self-hosted LiveSync passphrase for path obfuscation |
 | Device name | Identifies this device in sync |
+| Enable periodic sync | Toggle for automatic sync timer |
+| Sync interval | Seconds between syncs (default: 300) |
 
 ## CLI Tools (included)
 
@@ -48,6 +85,8 @@ For headless/scripted sync (e.g. cron jobs):
 node livesync-cli.mjs status          # Show DB info
 node livesync-cli.mjs fetch           # Full download from DB
 node livesync-sync.mjs sync           # Bidirectional sync
+node livesync-sync.mjs pull           # Remote → Local
+node livesync-sync.mjs push           # Local → Remote
 node livesync-sync.mjs prune          # Remove zombie docs
 node livesync-sync.mjs push --dry-run # Preview push
 ```
@@ -56,9 +95,10 @@ node livesync-sync.mjs push --dry-run # Preview push
 
 ```bash
 export LIVESYNC_URI="https://your-server/couchdb"
-export LIVESYNC_USER="admin"
+export LIVESYNC_USER="your-username"
 export LIVESYNC_PASS="your-password"
-export LIVESYNC_DB="obsidianlivesync"
+export LIVESYNC_DB="your-database-name"
+export LIVESYNC_PASSPHRASE="your-passphrase"
 export VAULT_PATH="$HOME/your-vault"
 ```
 
@@ -69,6 +109,7 @@ LiteSync reads/writes the same CouchDB database format as Self-hosted LiveSync:
 - **File documents** (`f:` prefix): path, mtime, size, children (chunk IDs)
 - **Chunk documents** (`h:` prefix): text content, type `leaf`
 - File content = ordered concatenation of children chunks
+- **Path obfuscation**: SHA-256 based, compatible with LiveSync passphrase
 
 The CLI also includes:
 - **Manifest-based change detection** (`.livesync-manifest.json`)

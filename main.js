@@ -220,6 +220,7 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
     _this.statusBarEl = null;
     _this.syncing = false;
     _this.syncTimer = null;
+    _this._manifest = { lastSync: 0, files: {} };
     return _this;
   }
 
@@ -299,12 +300,25 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
   LiteSyncPlugin.prototype.loadSettings = function() {
     var _this = this;
     return this.loadData().then(function(data) {
-      _this.settings = Object.assign({}, DEFAULT_SETTINGS, data || {});
+      data = data || {};
+      _this._manifest = data._manifest || { lastSync: 0, files: {} };
+      _this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     });
   };
 
   LiteSyncPlugin.prototype.saveSettings = function() {
-    return this.saveData(this.settings);
+    var data = Object.assign({}, this.settings);
+    data._manifest = this._manifest;
+    return this.saveData(data);
+  };
+
+  LiteSyncPlugin.prototype._saveManifest = function() {
+    var files = {};
+    this.app.vault.getFiles().forEach(function(f) {
+      files[f.path] = { size: f.stat.size, mtime: f.stat.mtime };
+    });
+    this._manifest = { lastSync: Date.now(), files: files };
+    return this.saveSettings();
   };
 
   // === Status bar ===
@@ -415,11 +429,13 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
         return { success: success, skipped: skipped, errors: errors };
       });
     }).then(function(r) {
-      _this.syncing = false;
       var msg = "LiteSync fetch: " + r.success + " downloaded, " + r.skipped + " skipped";
       if (r.errors > 0) msg += ", " + r.errors + " errors";
       _this.setStatus(r.errors > 0 ? "error" : "ok", msg);
       new obsidian.Notice(msg, 8000);
+      return _this._saveManifest();
+    }).then(function() {
+      _this.syncing = false;
     }).catch(function(err) {
       _this.syncing = false;
       _this.setStatus("error", "LiteSync: fetch error");
@@ -484,11 +500,13 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
         return { pulled: pulled, errors: errors };
       });
     }).then(function(r) {
-      _this.syncing = false;
       var msg = "LiteSync pull: " + r.pulled + " pulled";
       if (r.errors > 0) msg += ", " + r.errors + " errors";
       _this.setStatus(r.errors > 0 ? "error" : "ok", msg);
       new obsidian.Notice(msg, 5000);
+      return _this._saveManifest();
+    }).then(function() {
+      _this.syncing = false;
     }).catch(function(err) {
       _this.syncing = false;
       _this.setStatus("error", "LiteSync: pull error");
@@ -558,11 +576,13 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
         return { pushed: pushed, errors: errors };
       });
     }).then(function(r) {
-      _this.syncing = false;
       var msg = "LiteSync push: " + r.pushed + " pushed";
       if (r.errors > 0) msg += ", " + r.errors + " errors";
       _this.setStatus(r.errors > 0 ? "error" : "ok", msg);
       new obsidian.Notice(msg, 5000);
+      return _this._saveManifest();
+    }).then(function() {
+      _this.syncing = false;
     }).catch(function(err) {
       _this.syncing = false;
       _this.setStatus("error", "LiteSync: push error");
@@ -582,33 +602,52 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
     this.syncing = true;
     this.setStatus("syncing", "LiteSync: syncing...");
 
+    var manifest = _this._manifest.files || {};
+
     return fetchAllRemoteDocs(s).then(function(remoteDocs) {
+      // Build remote maps: active docs + deleted docs
       var remoteByPath = {};
+      var remoteDeleted = {};
       remoteDocs.forEach(function(row) {
-        if (row.doc.path && !row.doc.deleted) remoteByPath[row.doc.path] = row.doc;
+        if (!row.doc.path) return;
+        if (row.doc.deleted) { remoteDeleted[row.doc.path] = row.doc; }
+        else { remoteByPath[row.doc.path] = row.doc; }
       });
 
       var localFiles = vault.getFiles();
       var localByPath = {};
       localFiles.forEach(function(f) { localByPath[f.path] = f; });
 
-      var allPaths = {};
-      Object.keys(remoteByPath).forEach(function(p) { allPaths[p] = true; });
-      localFiles.forEach(function(f) { allPaths[f.path] = true; });
-
       var toPull = [];
       var toPush = [];
+      var toDeleteRemote = [];  // local deleted → soft-delete in DB
+      var toTrashLocal = [];    // remote deleted → trash locally
+
+      // Collect all known paths
+      var allPaths = {};
+      Object.keys(remoteByPath).forEach(function(p) { allPaths[p] = true; });
+      Object.keys(manifest).forEach(function(p) { allPaths[p] = true; });
+      localFiles.forEach(function(f) { allPaths[f.path] = true; });
 
       Object.keys(allPaths).forEach(function(p) {
         var remote = remoteByPath[p];
         var local = localByPath[p];
+        var inManifest = !!manifest[p];
 
-        if (remote && !local) {
+        if (inManifest && !local && remote) {
+          // Was synced before, now deleted locally → soft-delete remote
+          toDeleteRemote.push({ path: p, doc: remote });
+        } else if (inManifest && local && !remote) {
+          // Was synced before, now gone from remote → trash local
+          toTrashLocal.push({ path: p, file: local });
+        } else if (!inManifest && !local && remote) {
+          // Never synced, remote only → pull
           toPull.push({ path: p, doc: remote });
-        } else if (local && !remote) {
+        } else if (!inManifest && local && !remote) {
+          // Never synced, local only → push
           toPush.push({ path: p, file: local, doc: null });
         } else if (remote && local) {
-          if (remote.size === local.stat.size) return; // same size, skip
+          if (remote.size === local.stat.size) return;
           var rMtime = remote.mtime || 0;
           var lMtime = local.stat.mtime || 0;
           if (lMtime > rMtime) {
@@ -619,16 +658,57 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
         }
       });
 
-      var result = { pulled: 0, pushed: 0, errors: 0 };
-      var totalOps = toPull.length + toPush.length;
+      // Remote soft-deleted docs → trash local if file exists
+      Object.keys(remoteDeleted).forEach(function(p) {
+        var local = localByPath[p];
+        if (local) {
+          toTrashLocal.push({ path: p, file: local });
+        }
+      });
+
+      var result = { pulled: 0, pushed: 0, deleted: 0, trashed: 0, errors: 0 };
+      var totalOps = toPull.length + toPush.length + toDeleteRemote.length + toTrashLocal.length;
       var done = 0;
+
+      function updateProgress() {
+        done++;
+        _this.setStatus("syncing", "LiteSync: sync " + done + "/" + totalOps);
+      }
+
+      // Process remote deletions (local deleted → soft-delete in DB)
+      function deleteNext(i) {
+        if (i >= toDeleteRemote.length) return Promise.resolve();
+        updateProgress();
+        var item = toDeleteRemote[i];
+        return softDeleteInDB(s, item.doc).then(function() {
+          result.deleted++;
+          return deleteNext(i + 1);
+        }).catch(function(err) {
+          console.error("LiteSync delete error:", item.path, err);
+          result.errors++;
+          return deleteNext(i + 1);
+        });
+      }
+
+      // Process local trash (remote deleted → move to Obsidian .trash)
+      function trashNext(i) {
+        if (i >= toTrashLocal.length) return Promise.resolve();
+        updateProgress();
+        var item = toTrashLocal[i];
+        return vault.trash(item.file, false).then(function() {
+          result.trashed++;
+          return trashNext(i + 1);
+        }).catch(function(err) {
+          console.error("LiteSync trash error:", item.path, err);
+          result.errors++;
+          return trashNext(i + 1);
+        });
+      }
 
       function pullNext(i) {
         if (i >= toPull.length) return Promise.resolve();
-        done++;
-        _this.setStatus("syncing", "LiteSync: sync " + done + "/" + totalOps);
+        updateProgress();
         var item = toPull[i];
-
         return fetchFileContent(s, item.doc).then(function(content) {
           return _this._writeContent(item.path, content);
         }).then(function() {
@@ -643,10 +723,8 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
 
       function pushNext(i) {
         if (i >= toPush.length) return Promise.resolve();
-        done++;
-        _this.setStatus("syncing", "LiteSync: sync " + done + "/" + totalOps);
+        updateProgress();
         var item = toPush[i];
-
         return _this._readFileContent(item.file).then(function(content) {
           return _this._getLatestDoc(item.doc).then(function(doc) {
             return pushFile(s, item.path, content, doc, item.file.stat.mtime, item.file.stat.size);
@@ -666,19 +744,27 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
         });
       }
 
-      return pullNext(0).then(function() {
+      return deleteNext(0).then(function() {
+        return trashNext(0);
+      }).then(function() {
+        return pullNext(0);
+      }).then(function() {
         return pushNext(0);
       }).then(function() {
         return result;
       });
     }).then(function(r) {
-      _this.syncing = false;
       var msg = "LiteSync: " + r.pulled + " pulled, " + r.pushed + " pushed";
+      if (r.deleted > 0) msg += ", " + r.deleted + " deleted";
+      if (r.trashed > 0) msg += ", " + r.trashed + " trashed";
       if (r.errors > 0) msg += ", " + r.errors + " errors";
       _this.setStatus(r.errors > 0 ? "error" : "ok", msg);
-      if (r.pulled + r.pushed > 0 || r.errors > 0) {
+      if (r.pulled + r.pushed + r.deleted + r.trashed > 0 || r.errors > 0) {
         new obsidian.Notice(msg, 5000);
       }
+      return _this._saveManifest();
+    }).then(function() {
+      _this.syncing = false;
     }).catch(function(err) {
       _this.syncing = false;
       _this.setStatus("error", "LiteSync: sync error");
