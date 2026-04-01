@@ -6,21 +6,21 @@ Lightweight CouchDB sync plugin for Obsidian. Compatible with [Self-hosted LiveS
 
 I have a 2010 MacBook Air with 2GB RAM running macOS 10.14 Mojave. It is lightweight and portable for me for note-taking daily life.
 
-I use [Self-hosted LiveSync](https://github.com/vrtmrz/obsidian-livesync) to sync my vault across devices through my own CouchDB server. It's a brilliant project — real-time, end-to-end encrypted, self-hosted. I trusted it with years of notes.
+I had been using iCloud to sync my Obsidian vault, and it worked fine — on Apple devices. Two things pushed me to look for an alternative: first, my 2010 MacBook Air couldn't support iCloud's end-to-end encryption, blocking E2EE across all my Apple devices — so iCloud sync was already compromised; second, I wanted to keep my options open for cross-platform sync in the future — I'd rather not be locked into any single ecosystem.
 
-I had been using iCloud to sync my vault, and it worked fine — on Apple devices. Two things pushed me: first, my 2010 MacBook Air couldn't support iCloud's end-to-end encryption, blocking E2EE across all my Apple devices — so iCloud sync was already compromised; second, I wanted cross-platform flexibility and didn't want to stay locked into iCloud. Once I switched to CouchDB sync, I could disconnect the MacBook Air from iCloud entirely and use CouchDB's E2EE to sync Obsidian instead — problem solved on both fronts. So with Claude's help, I decided to step out of my comfort zone and break free from the iCloud dependency entirely.
+I found [Self-hosted LiveSync](https://github.com/vrtmrz/obsidian-livesync) — a brilliant project that syncs Obsidian vaults through CouchDB with end-to-end encryption. It works perfectly on my other Apple devices, and I still use it there. Once I moved Obsidian sync to CouchDB, I could disconnect the MacBook Air from iCloud entirely — and all my other Apple devices could finally enable iCloud E2EE for everything else.
 
-So I did what any stubborn engineer would do: I opened the CouchDB database, reverse-engineered the document format, and wrote my own sync plugin from scratch.
+But LiveSync is a complex plugin optimized for modern Electron, and my 2010 MacBook Air with only 2GB RAM struggled with it. So with Claude's help, I decided to write a lightweight alternative that reads and writes the exact same CouchDB database.
 
-900 lines of ES2017. No build step. No transpiler. No dependencies. Just plain JavaScript that reads and writes the exact same database LiveSync uses.
+900 lines of ES2017. No build step. No transpiler. No dependencies. LiteSync runs on the MacBook Air, LiveSync runs on everything else — and they share the same database seamlessly.
 
 It worked on the first try.
 
 ## Why Share This
 
-LiveSync is an incredible piece of engineering. I'm not trying to replace it — if it works for you, keep using it.
+LiveSync is an incredible piece of engineering. I'm not trying to replace it — if it works for you, keep using it. I still use it myself on my other devices.
 
-But if you're stuck on an older machine, or if LiveSync is crashing and you need your notes *right now*, or if you just want a sync plugin simple enough to read in one sitting — LiteSync is here.
+But if you're stuck on an older machine, or if you just want a sync plugin simple enough to read in one sitting — LiteSync is here.
 
 It's also a clean reference implementation of the LiveSync database format. The entire codebase fits in a single file. Fork it, modify it, learn from it.
 
