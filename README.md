@@ -4,7 +4,7 @@ Lightweight CouchDB sync plugin for Obsidian. Compatible with [Self-hosted LiveS
 
 ## The Story
 
-I have a 2010 MacBook Air with 2GB RAM running macOS 10.14 Mojave. It's not old to me — it's my daily driver, my note-taking machine, the place where thousands of Obsidian notes live.
+I have a 2010 MacBook Air with 2GB RAM running macOS 10.14 Mojave. It is lightweight and portable for me for note-taking daily life.
 
 I use [Self-hosted LiveSync](https://github.com/vrtmrz/obsidian-livesync) to sync my vault across devices through my own CouchDB server. It's a brilliant project — real-time, end-to-end encrypted, self-hosted. I trusted it with years of notes.
 
