@@ -638,8 +638,8 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
           // Was synced before, now deleted locally → soft-delete remote
           toDeleteRemote.push({ path: p, doc: remote });
         } else if (inManifest && local && !remote) {
-          // Was synced before, now gone from remote → trash local
-          toTrashLocal.push({ path: p, file: local });
+          // Was synced before, remote doc gone (purge/compaction?) → re-push
+          toPush.push({ path: p, file: local, doc: null });
         } else if (!inManifest && !local && remote) {
           // Never synced, remote only → pull
           toPull.push({ path: p, doc: remote });
@@ -658,8 +658,12 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
         }
       });
 
-      // Remote soft-deleted docs → trash local if file exists
+      // Remote soft-deleted docs → trash local only if:
+      // 1. No active remote doc for this path (avoid conflict with active docs)
+      // 2. File was previously synced (in manifest — don't trust old deletions on first sync)
       Object.keys(remoteDeleted).forEach(function(p) {
+        if (remoteByPath[p]) return;  // active doc exists, skip
+        if (!manifest[p]) return;     // never synced, ignore old deletions
         var local = localByPath[p];
         if (local) {
           toTrashLocal.push({ path: p, file: local });
