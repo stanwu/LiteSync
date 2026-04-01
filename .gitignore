@@ -2,4 +2,5 @@ node_modules/
 data.json
 .livesync-manifest.json
 *.log
+*.zip
 .DS_Store

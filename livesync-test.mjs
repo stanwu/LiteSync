@@ -11,14 +11,20 @@ import path from "path";
 import crypto from "crypto";
 import { execSync } from "child_process";
 
-// === Test sandbox config ===
-const TEST_DB = "livesync_sandbox_test";
-const TEST_VAULT = "/tmp/livesync-test-suite";
+// === Test sandbox config (via environment variables) ===
+const TEST_DB = process.env.LIVESYNC_TEST_DB || "livesync_sandbox_test";
+const TEST_VAULT = process.env.LIVESYNC_TEST_VAULT || "/tmp/livesync-test-suite";
 const CONFIG = {
-  uri: "https://your-server/couchdb",
-  user: "admin",
-  password: "your-password",
+  uri: process.env.LIVESYNC_URI || "",
+  user: process.env.LIVESYNC_USER || "",
+  password: process.env.LIVESYNC_PASS || "",
 };
+
+if (!CONFIG.uri || !CONFIG.user || !CONFIG.password) {
+  console.error("Error: Set LIVESYNC_URI, LIVESYNC_USER, LIVESYNC_PASS environment variables.");
+  process.exit(1);
+}
+
 const AUTH = Buffer.from(`${CONFIG.user}:${CONFIG.password}`).toString("base64");
 
 // === Test framework ===

@@ -13,15 +13,20 @@ import https from "https";
 import fs from "fs";
 import path from "path";
 
-// === Configuration ===
+// === Configuration (via environment variables) ===
 const CONFIG = {
-  uri: "https://your-server/couchdb",
-  user: process.env.LIVESYNC_USER || "admin",
-  password: "your-password",
-  dbname: "obsidianlivesync",
-  vaultPath: process.env.VAULT_PATH || `${process.env.HOME}/Obsidian_Vault/個人筆記庫`,
+  uri: process.env.LIVESYNC_URI || "",
+  user: process.env.LIVESYNC_USER || "",
+  password: process.env.LIVESYNC_PASS || "",
+  dbname: process.env.LIVESYNC_DB || "",
+  vaultPath: process.env.VAULT_PATH || `${process.env.HOME}/livesync-vault`,
   batchSize: 200,
 };
+
+if (!CONFIG.uri || !CONFIG.user || !CONFIG.password || !CONFIG.dbname) {
+  console.error("Error: Set LIVESYNC_URI, LIVESYNC_USER, LIVESYNC_PASS, LIVESYNC_DB environment variables.");
+  process.exit(1);
+}
 
 const AUTH = Buffer.from(`${CONFIG.user}:${CONFIG.password}`).toString("base64");
 

@@ -18,16 +18,21 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 
-// === Configuration ===
+// === Configuration (via environment variables) ===
 const CONFIG = {
-  uri: process.env.LIVESYNC_URI || "https://your-server/couchdb",
-  user: process.env.LIVESYNC_USER || "admin",
-  password: process.env.LIVESYNC_PASS || "your-password",
-  dbname: process.env.LIVESYNC_DB || "livesync_sandbox",
-  vaultPath: process.env.VAULT_PATH || `${process.env.HOME}/livesync-test-vault`,
-  passphrase: process.env.LIVESYNC_PASSPHRASE || "your-passphrase",
+  uri: process.env.LIVESYNC_URI || "",
+  user: process.env.LIVESYNC_USER || "",
+  password: process.env.LIVESYNC_PASS || "",
+  dbname: process.env.LIVESYNC_DB || "",
+  vaultPath: process.env.VAULT_PATH || `${process.env.HOME}/livesync-vault`,
+  passphrase: process.env.LIVESYNC_PASSPHRASE || "",
   batchSize: 200,
 };
+
+if (!CONFIG.uri || !CONFIG.user || !CONFIG.password || !CONFIG.dbname) {
+  console.error("Error: Set LIVESYNC_URI, LIVESYNC_USER, LIVESYNC_PASS, LIVESYNC_DB environment variables.");
+  process.exit(1);
+}
 
 const AUTH = Buffer.from(`${CONFIG.user}:${CONFIG.password}`).toString("base64");
 
@@ -853,7 +858,7 @@ async function cmdPrune(dryRun = false) {
   console.log(`  Errors:  ${errors}`);
   console.log(`  DB now:  ${dbInfo.doc_count} docs, ${Math.floor(dbInfo.sizes.file / 1024 / 1024)} MB`);
   console.log(`\n  Tip: Run CouchDB compaction to reclaim disk space:`);
-  console.log(`  curl -X POST -u admin:*** ${CONFIG.uri}/${CONFIG.dbname}/_compact`);
+  console.log(`  curl -X POST -u <user>:<pass> ${CONFIG.uri}/${CONFIG.dbname}/_compact`);
 }
 
 // === Main ===
