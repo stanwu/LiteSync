@@ -1,0 +1,35 @@
+name: Release Obsidian Plugin
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package plugin
+        run: |
+          mkdir litesync
+          cp main.js manifest.json styles.css litesync/
+          zip -r litesync-plugin.zip litesync/
+
+      - name: Get version from tag
+        id: tag
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: LiteSync ${{ steps.tag.outputs.version }}
+          files: |
+            litesync-plugin.zip
+            main.js
+            manifest.json
+            styles.css
