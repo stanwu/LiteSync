@@ -8,7 +8,7 @@ I have a 2010 MacBook Air with 2GB RAM running macOS 10.14 Mojave. It is lightwe
 
 I use [Self-hosted LiveSync](https://github.com/vrtmrz/obsidian-livesync) to sync my vault across devices through my own CouchDB server. It's a brilliant project — real-time, end-to-end encrypted, self-hosted. I trusted it with years of notes.
 
-I had been using iCloud to sync my vault, and it worked fine — on Apple devices. Two things pushed me: first, my 2010 MacBook Air couldn't support iCloud's end-to-end encryption, blocking E2EE across all my Apple devices — so iCloud sync was already compromised; second, I wanted cross-platform flexibility and didn't want to stay locked into iCloud. I didn't want to be locked into Apple's ecosystem. So with Claude's help, I decided to step out of my comfort zone and break free from the iCloud dependency entirely.
+I had been using iCloud to sync my vault, and it worked fine — on Apple devices. Two things pushed me: first, my 2010 MacBook Air couldn't support iCloud's end-to-end encryption, blocking E2EE across all my Apple devices — so iCloud sync was already compromised; second, I wanted cross-platform flexibility and didn't want to stay locked into iCloud. Once I switched to CouchDB sync, I could disconnect the MacBook Air from iCloud entirely and use CouchDB's E2EE to sync Obsidian instead — problem solved on both fronts. So with Claude's help, I decided to step out of my comfort zone and break free from the iCloud dependency entirely.
 
 So I did what any stubborn engineer would do: I opened the CouchDB database, reverse-engineered the document format, and wrote my own sync plugin from scratch.
 
