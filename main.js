@@ -14,6 +14,8 @@ var DEFAULT_SETTINGS = {
   couchdbDbname: "",
   passphrase: "",
   deviceName: "",
+  autoSync: false,
+  syncInterval: 300,  // seconds, 0 = manual only
 };
 
 var BINARY_EXT = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf",
@@ -217,6 +219,7 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
     _this.settings = Object.assign({}, DEFAULT_SETTINGS);
     _this.statusBarEl = null;
     _this.syncing = false;
+    _this.syncTimer = null;
     return _this;
   }
 
@@ -260,12 +263,36 @@ var LiteSyncPlugin = /** @class */ (function(_super) {
         callback: function() { _this.showStatus(); },
       });
 
+      // Start periodic sync timer if enabled
+      if (_this.settings.autoSync && _this.settings.syncInterval > 0 && _this.settings.couchdbUri) {
+        _this.startSyncTimer();
+      }
+
       console.log("LiteSync: loaded");
     });
   };
 
   LiteSyncPlugin.prototype.onunload = function() {
+    if (this.syncTimer) clearInterval(this.syncTimer);
     console.log("LiteSync: unloading");
+  };
+
+  // === Periodic sync timer ===
+  LiteSyncPlugin.prototype.startSyncTimer = function() {
+    var _this = this;
+    if (this.syncTimer) clearInterval(this.syncTimer);
+    if (this.settings.syncInterval > 0) {
+      this.syncTimer = setInterval(function() {
+        _this.doSync();
+      }, this.settings.syncInterval * 1000);
+    }
+  };
+
+  LiteSyncPlugin.prototype.stopSyncTimer = function() {
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+    }
   };
 
   // === Settings ===
@@ -812,6 +839,42 @@ var LiteSyncSettingTab = /** @class */ (function(_super) {
       .addText(function(text) {
         text.setValue(s.deviceName)
           .onChange(function(v) { s.deviceName = v; plugin.saveSettings(); });
+      });
+
+    // Periodic sync
+    el.createEl("h3", { text: "Periodic Sync" });
+
+    new obsidian.Setting(el)
+      .setName("Enable periodic sync")
+      .setDesc("Automatically run bidirectional sync on a timer")
+      .addToggle(function(toggle) {
+        toggle.setValue(s.autoSync)
+          .onChange(function(v) {
+            s.autoSync = v;
+            plugin.saveSettings();
+            if (v && s.syncInterval > 0 && s.couchdbUri) {
+              plugin.startSyncTimer();
+            } else {
+              plugin.stopSyncTimer();
+            }
+          });
+      });
+
+    new obsidian.Setting(el)
+      .setName("Sync interval (seconds)")
+      .setDesc("How often to sync. Default: 300 (5 minutes)")
+      .addText(function(text) {
+        text.setValue(String(s.syncInterval))
+          .onChange(function(v) {
+            var val = parseInt(v) || 0;
+            s.syncInterval = val;
+            plugin.saveSettings();
+            if (s.autoSync && val > 0) {
+              plugin.startSyncTimer();
+            } else {
+              plugin.stopSyncTimer();
+            }
+          });
       });
 
     // Actions
