@@ -9,13 +9,13 @@ Lightweight CouchDB sync plugin for Obsidian. Compatible with [Self-hosted LiveS
 
 ## The Story
 
-I have a 2010 MacBook Air with 2GB RAM running macOS 10.14 Mojave. It is lightweight and portable for me for note-taking daily life.
+I have a 2010 MacBook Air with 2GB RAM running macOS 10.14 Mojave. It's old, but it's light and goes everywhere with me — perfect for daily note-taking.
 
 I had been using iCloud to sync my Obsidian vault, and it worked fine — on Apple devices. Two things pushed me to look for an alternative: first, my 2010 MacBook Air couldn't support iCloud's end-to-end encryption, blocking E2EE across all my Apple devices — so iCloud sync was already compromised; second, I wanted to keep my options open for cross-platform sync in the future — I'd rather not be locked into any single ecosystem.
 
 I found [Self-hosted LiveSync](https://github.com/vrtmrz/obsidian-livesync) — a brilliant project that syncs Obsidian vaults through a self-hosted CouchDB server. It works perfectly on my other Apple devices, and I still use it there. Once I moved Obsidian sync off iCloud, I could disconnect the MacBook Air from iCloud entirely — and all my other Apple devices could finally enable iCloud E2EE for everything else.
 
-But LiveSync is a complex plugin optimized for modern Electron, and my 2010 MacBook Air with only 2GB RAM struggled with it. So with Claude's help, I decided to write a lightweight alternative that reads and writes the exact same CouchDB database.
+But LiveSync is a complex plugin optimized for modern Electron, and my 2010 MacBook Air with only 2GB RAM struggled with it. So I described the problem to Claude, and together we wrote a lightweight alternative that reads and writes the exact same CouchDB database.
 
 900 lines of ES2017. No build step. No transpiler. No dependencies. LiteSync runs on the MacBook Air, LiveSync runs on everything else — and they share the same database seamlessly.
 
@@ -25,7 +25,7 @@ It worked on the first try.
 
 LiveSync is an incredible piece of engineering. I'm not trying to replace it — if it works for you, keep using it. I still use it myself on my other devices.
 
-But if you're stuck on an older machine, or if you just want a sync plugin simple enough to read in one sitting — LiteSync is here.
+But I can't be the only one with an old machine that still works fine for everything except one heavy plugin. If you're in that situation, or if you just want a sync plugin simple enough to read in one sitting — LiteSync is here.
 
 It's also a clean reference implementation of the LiveSync database format. The entire codebase fits in a single file. Fork it, modify it, learn from it.
 
