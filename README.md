@@ -29,6 +29,16 @@ But I can't be the only one with an old machine that still works fine for everyt
 
 It's also a clean reference implementation of the LiveSync database format. The entire codebase fits in a single file. Fork it, modify it, learn from it.
 
+## Why No E2EE?
+
+LiteSync does not implement end-to-end encryption. Two reasons:
+
+1. **LiveSync's E2EE caused sync issues.** I originally had E2EE enabled in LiveSync, but ran into significant sync problems. After disabling it, syncing became reliable. Since LiteSync shares the same database with LiveSync, it follows the same unencrypted format.
+
+2. **The transport is already encrypted.** I self-host CouchDB on my own machine, and all devices connect through an encrypted VPN tunnel. The data never travels over an unencrypted network.
+
+**Note:** The VPN encrypts data in transit, but the data at rest in CouchDB is unencrypted. For my self-hosted setup this is an acceptable trade-off. If your CouchDB is exposed to the public internet without a VPN, be aware that vault contents are stored in plaintext.
+
 ## Features
 
 - **Bidirectional sync** with CouchDB (newer wins)
